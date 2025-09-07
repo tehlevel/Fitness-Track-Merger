@@ -12,6 +12,9 @@ export const parseTcx = (tcxString: string, fileName: string): Promise<ActivityD
       if (errorNode) {
           throw new Error("Failed to parse TCX file. It might be corrupted or not a valid TCX.");
       }
+
+      const creatorNode = xmlDoc.querySelector("Creator > Name, Author > Name");
+      const deviceName = creatorNode?.textContent || null;
       
       const trackPoints: TrackPoint[] = [];
       const tpElements = xmlDoc.getElementsByTagName("Trackpoint");
@@ -100,6 +103,7 @@ export const parseTcx = (tcxString: string, fileName: string): Promise<ActivityD
       
       resolve({
         name,
+        deviceName,
         trackPoints,
         stats: { totalDistance, duration, avgHeartRate, avgPace, avgCadence }
       });

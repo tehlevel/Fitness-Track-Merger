@@ -1,4 +1,3 @@
-
 // Triggers a file download in the browser
 export const downloadFile = (content: string, fileName: string, mimeType: string) => {
   const blob = new Blob([content], { type: mimeType });
@@ -34,6 +33,28 @@ export const formatPace = (secondsPerKm: number): string => {
   const seconds = Math.round(secondsPerKm % 60);
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
+
+// Parses a "mm:ss" or "ss" string into seconds
+export const parsePaceToSeconds = (paceString: string): number | null => {
+  if (!paceString || typeof paceString !== 'string') return null;
+
+  const parts = paceString.split(':').map(part => parseInt(part, 10));
+
+  if (parts.some(isNaN)) return null;
+
+  if (parts.length === 1) {
+    return parts[0]; // Just seconds
+  }
+  if (parts.length === 2) {
+    const minutes = parts[0];
+    const seconds = parts[1];
+    if (minutes < 0 || seconds < 0 || seconds >= 60) return null;
+    return minutes * 60 + seconds; // Minutes and seconds
+  }
+
+  return null; // Invalid format
+};
+
 
 // Formats seconds into an hh:mm:ss string
 export const formatDuration = (totalSeconds: number): string => {

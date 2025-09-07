@@ -2,7 +2,7 @@
 import React from 'react';
 import type { ActivityData } from '../types';
 import { formatPace, formatDuration } from '../utils/helpers';
-import { RunIcon, HeartIcon, ClockIcon, GaugeIcon, CadenceIcon } from './Icons';
+import { RunIcon, HeartIcon, ClockIcon, GaugeIcon, CadenceIcon, DeviceIcon } from './Icons';
 
 interface ActivitySummaryProps {
   activity: ActivityData;
@@ -11,6 +11,7 @@ interface ActivitySummaryProps {
 
 export const ActivitySummary: React.FC<ActivitySummaryProps> = ({ activity, label }) => {
   const { totalDistance, duration, avgHeartRate, avgPace, avgCadence } = activity.stats;
+  const { deviceName } = activity;
 
   return (
     <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
@@ -52,6 +53,15 @@ export const ActivitySummary: React.FC<ActivitySummaryProps> = ({ activity, labe
                     <div className="text-xs text-slate-500">Avg Cadence</div>
                 </div>
             </div>
+            {deviceName && (
+                <div className="flex items-center">
+                    <DeviceIcon className="h-5 w-5 text-slate-500 mr-2" />
+                    <div>
+                        <div className="font-semibold truncate" title={deviceName}>{deviceName}</div>
+                        <div className="text-xs text-slate-500">Device</div>
+                    </div>
+                </div>
+            )}
         </div>
     </div>
   );

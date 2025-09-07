@@ -12,6 +12,7 @@ export interface TrackPoint {
 
 export interface ActivityData {
   name: string;
+  deviceName: string | null;
   trackPoints: TrackPoint[];
   stats: {
     totalDistance: number;

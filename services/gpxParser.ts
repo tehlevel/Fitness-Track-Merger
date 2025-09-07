@@ -12,6 +12,9 @@ export const parseGpx = (gpxString: string, fileName: string): Promise<ActivityD
       if (errorNode) {
           throw new Error("Failed to parse GPX file. It might be corrupted or not a valid GPX.");
       }
+      
+      const creatorNode = xmlDoc.querySelector("metadata > creator");
+      const deviceName = creatorNode?.textContent || null;
 
       const trackPoints: TrackPoint[] = [];
       const trkptElements = xmlDoc.getElementsByTagName("trkpt");
@@ -73,6 +76,7 @@ export const parseGpx = (gpxString: string, fileName: string): Promise<ActivityD
       
       resolve({
         name,
+        deviceName,
         trackPoints,
         stats: { totalDistance, duration, avgHeartRate, avgPace, avgCadence }
       });

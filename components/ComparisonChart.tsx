@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   LineChart,
@@ -15,9 +14,13 @@ import { formatPace, formatTimeOfDayAxis } from '../utils/helpers';
 interface ComparisonChartProps {
   data: any[];
   metric: 'hr' | 'pace';
+  labelA?: string;
+  labelB?: string;
+  yMin?: number;
+  yMax?: number;
 }
 
-export const ComparisonChart: React.FC<ComparisonChartProps> = ({ data, metric }) => {
+export const ComparisonChart: React.FC<ComparisonChartProps> = ({ data, metric, labelA = 'A', labelB = 'B', yMin, yMax }) => {
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-slate-500">
@@ -28,14 +31,15 @@ export const ComparisonChart: React.FC<ComparisonChartProps> = ({ data, metric }
 
   const isHr = metric === 'hr';
   
-  const yDomain: [number, number] = isHr ? [100, 200] : [180, 540]; // 3-9 min/km for pace
+  const defaultDomain: [number, number] = isHr ? [100, 200] : [180, 540]; // Default: HR 100-200, Pace 3-9 min/km
+  const yDomain: [number | 'auto', number | 'auto'] = [yMin ?? defaultDomain[0], yMax ?? defaultDomain[1]];
   const yLabel = isHr ? 'Heart Rate (bpm)' : 'Pace (min/km)';
   const strokeColor = isHr ? '#0ea5e9' : '#f97316';
   const strokeColorLight = isHr ? '#67e8f9' : '#fdba74';
   const dataKeyA = isHr ? 'hrA' : 'paceA';
   const dataKeyB = isHr ? 'hrB' : 'paceB';
-  const nameA = isHr ? 'Heart Rate A' : 'Pace A';
-  const nameB = isHr ? 'Heart Rate B' : 'Pace B';
+  const nameA = isHr ? `HR ${labelA}` : `Pace ${labelA}`;
+  const nameB = isHr ? `HR ${labelB}` : `Pace ${labelB}`;
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -59,6 +63,7 @@ export const ComparisonChart: React.FC<ComparisonChartProps> = ({ data, metric }
           reversed={!isHr} // Pace is inverted (lower is better/higher on chart)
           tickFormatter={isHr ? (val) => String(Math.round(val)) : (s) => formatPace(s)}
           label={{ value: yLabel, angle: -90, position: 'insideLeft', offset: 0, fill: strokeColor }}
+          allowDataOverflow={true}
         />
         <Tooltip
           formatter={(value: number, name: string) => {

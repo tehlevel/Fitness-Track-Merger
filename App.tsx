@@ -1,10 +1,10 @@
-
 import React, { useState, useCallback, useMemo } from 'react';
 import { Header } from './components/Header';
 import { FileUpload } from './components/FileUpload';
 import { MergeControls } from './components/MergeControls';
 import { ComparisonChart } from './components/ComparisonChart';
 import { ActivitySummary } from './components/ActivitySummary';
+import { ChartControls } from './components/ChartControls';
 import { parseGpx } from './services/gpxParser';
 import { parseTcx } from './services/tcxParser';
 import { buildGpx } from './services/gpxBuilder';
@@ -17,8 +17,17 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<{ a: boolean; b: boolean }>({ a: false, b: false });
   const [error, setError] = useState<{ a: string | null; b: string | null }>({ a: null, b: null });
 
+  const [customLabelA, setCustomLabelA] = useState<string>('');
+  const [customLabelB, setCustomLabelB] = useState<string>('');
+
   const [baseSource, setBaseSource] = useState<DataSource>('A');
   const [hrSource, setHrSource] = useState<DataSource>('A');
+  
+  // State for chart Y-axis ranges
+  const [hrRange, setHrRange] = useState({ min: 100, max: 200 });
+  // For pace, UI Min is slower (e.g., 9:00) and UI Max is faster (e.g., 3:00),
+  // which is inverted for the chart's domain.
+  const [paceUiRange, setPaceUiRange] = useState({ uiMin: 540, uiMax: 180 });
 
   const handleFileLoad = useCallback(async (fileContent: string, fileName: string, type: DataSource) => {
     setIsLoading(prev => ({ ...prev, [type.toLowerCase()]: true }));
@@ -42,14 +51,21 @@ const App: React.FC = () => {
       
       if (type === 'A') {
         setActivityA(parsedData);
+        setCustomLabelA(parsedData.deviceName || '');
       } else {
         setActivityB(parsedData);
+        setCustomLabelB(parsedData.deviceName || '');
       }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred during parsing.';
       setError(prev => ({ ...prev, [type.toLowerCase()]: errorMessage }));
-      if (type === 'A') setActivityA(null);
-      else setActivityB(null);
+      if (type === 'A') {
+        setActivityA(null);
+        setCustomLabelA('');
+      } else {
+        setActivityB(null);
+        setCustomLabelB('');
+      }
     } finally {
       setIsLoading(prev => ({ ...prev, [type.toLowerCase()]: false }));
     }
@@ -146,6 +162,12 @@ const App: React.FC = () => {
     return combinedPoints;
   }, [activityA, activityB]);
 
+  const mergeLabelA = `File A${customLabelA ? ` (${customLabelA})` : ''}`;
+  const mergeLabelB = `File B${customLabelB ? ` (${customLabelB})` : ''}`;
+  const chartLabelA = customLabelA || 'A';
+  const chartLabelB = customLabelB || 'B';
+
+
   return (
     <div className="min-h-screen bg-slate-100 font-sans">
       <Header />
@@ -162,6 +184,9 @@ const App: React.FC = () => {
                 isLoading={isLoading.a}
                 error={error.a}
                 fileName={activityA?.name}
+                activityLoaded={!!activityA}
+                customLabel={customLabelA}
+                onCustomLabelChange={setCustomLabelA}
               />
               <FileUpload
                 id="file-b"
@@ -170,6 +195,9 @@ const App: React.FC = () => {
                 isLoading={isLoading.b}
                 error={error.b}
                 fileName={activityB?.name}
+                activityLoaded={!!activityB}
+                customLabel={customLabelB}
+                onCustomLabelChange={setCustomLabelB}
               />
             </div>
 
@@ -180,8 +208,8 @@ const App: React.FC = () => {
                 onBaseSourceChange={setBaseSource}
                 onHrSourceChange={setHrSource}
                 onMerge={handleMerge}
-                fileAName={activityA.name}
-                fileBName={activityB.name}
+                fileAName={mergeLabelA}
+                fileBName={mergeLabelB}
               />
             )}
           </div>
@@ -191,12 +219,12 @@ const App: React.FC = () => {
                 <h2 className="text-xl font-bold text-slate-700 mb-4">3. Compare & Verify</h2>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     {activityA ? (
-                        <ActivitySummary activity={activityA} label="Summary A" />
+                        <ActivitySummary activity={activityA} label={mergeLabelA} />
                     ) : (
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-center h-full text-slate-500">File A not loaded.</div>
                     )}
                     {activityB ? (
-                        <ActivitySummary activity={activityB} label="Summary B" />
+                        <ActivitySummary activity={activityB} label={mergeLabelB} />
                      ) : (
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-center h-full text-slate-500">File B not loaded.</div>
                     )}
@@ -205,14 +233,35 @@ const App: React.FC = () => {
                 <div className="space-y-8">
                   <div>
                     <h3 className="text-lg font-semibold text-slate-600 mb-2">Heart Rate Comparison</h3>
+                    <ChartControls
+                      metric="hr"
+                      min={hrRange.min}
+                      max={hrRange.max}
+                      onMinChange={(newMin) => !isNaN(newMin) && setHrRange(prev => ({ ...prev, min: newMin }))}
+                      onMaxChange={(newMax) => !isNaN(newMax) && setHrRange(prev => ({ ...prev, max: newMax }))}
+                    />
                     <div className="h-64">
-                      <ComparisonChart data={chartData} metric="hr" />
+                      <ComparisonChart data={chartData} metric="hr" labelA={chartLabelA} labelB={chartLabelB} yMin={hrRange.min} yMax={hrRange.max} />
                     </div>
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-slate-600 mb-2">Pace Comparison</h3>
+                    <ChartControls
+                      metric="pace"
+                      min={paceUiRange.uiMin}
+                      max={paceUiRange.uiMax}
+                      onMinChange={(newMin) => setPaceUiRange(prev => ({ ...prev, uiMin: newMin }))}
+                      onMaxChange={(newMax) => setPaceUiRange(prev => ({ ...prev, uiMax: newMax }))}
+                    />
                     <div className="h-64">
-                      <ComparisonChart data={chartData} metric="pace" />
+                      <ComparisonChart 
+                        data={chartData} 
+                        metric="pace" 
+                        labelA={chartLabelA} 
+                        labelB={chartLabelB} 
+                        yMin={paceUiRange.uiMax} // Pass smaller value (faster pace) as yMin
+                        yMax={paceUiRange.uiMin} // Pass larger value (slower pace) as yMax
+                      />
                     </div>
                   </div>
                 </div>
