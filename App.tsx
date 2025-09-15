@@ -8,7 +8,7 @@ import { ChartControls } from './components/ChartControls';
 import { parseGpx } from './services/gpxParser';
 import { parseTcx } from './services/tcxParser';
 import { buildGpx } from './services/gpxBuilder';
-import { downloadFile } from './utils/helpers';
+import { downloadFile, simpleMovingAverage } from './utils/helpers';
 import type { ActivityData, DataSource, TrackPoint } from './types';
 
 const App: React.FC = () => {
@@ -25,9 +25,10 @@ const App: React.FC = () => {
   
   // State for chart Y-axis ranges
   const [hrRange, setHrRange] = useState({ min: 100, max: 200 });
-  // For pace, UI Min is slower (e.g., 9:00) and UI Max is faster (e.g., 3:00),
-  // which is inverted for the chart's domain.
   const [paceUiRange, setPaceUiRange] = useState({ uiMin: 540, uiMax: 180 });
+
+  // State for pace chart smoothing
+  const [paceSmoothing, setPaceSmoothing] = useState<number>(7);
 
   const handleFileLoad = useCallback(async (fileContent: string, fileName: string, type: DataSource) => {
     setIsLoading(prev => ({ ...prev, [type.toLowerCase()]: true }));
@@ -123,11 +124,13 @@ const App: React.FC = () => {
     if (globalStartTime === Infinity) return [];
     
     type CombinedPoint = {
-        time: number; // JavaScript timestamp
+        time: number;
         hrA: number | null;
         hrB: number | null;
         paceA: number | null;
         paceB: number | null;
+        hrMerged: number | null;
+        paceMerged: number | null;
     };
     const combinedPoints: CombinedPoint[] = [];
 
@@ -147,20 +150,47 @@ const App: React.FC = () => {
     const endTimeB = pointsB.length > 0 ? (new Date(pointsB[pointsB.length-1].time).getTime() - globalStartTime) / 1000 : 0;
     const maxTime = Math.ceil(Math.max(endTimeA, endTimeB));
     
+    const bothFilesLoaded = activityA && activityB;
+
     for (let t = 0; t <= maxTime; t++) {
         const pA = mapA.get(t);
         const pB = mapB.get(t);
+
+        const hrA = pA?.heartRate ?? null;
+        const hrB = pB?.heartRate ?? null;
+        const paceA = pA?.pace ?? null;
+        const paceB = pB?.pace ?? null;
+
         combinedPoints.push({
             time: globalStartTime + t * 1000,
-            hrA: pA?.heartRate ?? null,
-            hrB: pB?.heartRate ?? null,
-            paceA: pA?.pace ?? null,
-            paceB: pB?.pace ?? null,
+            hrA,
+            hrB,
+            paceA,
+            paceB,
+            hrMerged: bothFilesLoaded ? (hrSource === 'A' ? hrA : hrB) : null,
+            paceMerged: bothFilesLoaded ? (baseSource === 'A' ? paceA : paceB) : null,
         });
+    }
+    
+    if (paceSmoothing > 1) {
+      const rawPaceA = combinedPoints.map(p => p.paceA);
+      const rawPaceB = combinedPoints.map(p => p.paceB);
+      const rawPaceMerged = combinedPoints.map(p => p.paceMerged);
+
+      const smoothedPaceA = simpleMovingAverage(rawPaceA, paceSmoothing);
+      const smoothedPaceB = simpleMovingAverage(rawPaceB, paceSmoothing);
+      const smoothedPaceMerged = simpleMovingAverage(rawPaceMerged, paceSmoothing);
+
+      return combinedPoints.map((point, index) => ({
+        ...point,
+        paceA: smoothedPaceA[index],
+        paceB: smoothedPaceB[index],
+        paceMerged: smoothedPaceMerged[index],
+      }));
     }
 
     return combinedPoints;
-  }, [activityA, activityB]);
+  }, [activityA, activityB, paceSmoothing, baseSource, hrSource]);
 
   const mergeLabelA = `File A${customLabelA ? ` (${customLabelA})` : ''}`;
   const mergeLabelB = `File B${customLabelB ? ` (${customLabelB})` : ''}`;
@@ -200,23 +230,11 @@ const App: React.FC = () => {
                 onCustomLabelChange={setCustomLabelB}
               />
             </div>
-
-            {activityA && activityB && (
-              <MergeControls
-                baseSource={baseSource}
-                hrSource={hrSource}
-                onBaseSourceChange={setBaseSource}
-                onHrSourceChange={setHrSource}
-                onMerge={handleMerge}
-                fileAName={mergeLabelA}
-                fileBName={mergeLabelB}
-              />
-            )}
           </div>
 
           <div className="lg:col-span-8 space-y-6">
             <div className="p-6 bg-white rounded-xl shadow-md">
-                <h2 className="text-xl font-bold text-slate-700 mb-4">3. Compare & Verify</h2>
+                <h2 className="text-xl font-bold text-slate-700 mb-4">2. Compare & Verify</h2>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     {activityA ? (
                         <ActivitySummary activity={activityA} label={mergeLabelA} />
@@ -252,6 +270,8 @@ const App: React.FC = () => {
                       max={paceUiRange.uiMax}
                       onMinChange={(newMin) => setPaceUiRange(prev => ({ ...prev, uiMin: newMin }))}
                       onMaxChange={(newMax) => setPaceUiRange(prev => ({ ...prev, uiMax: newMax }))}
+                      smoothingLevel={paceSmoothing}
+                      onSmoothingChange={setPaceSmoothing}
                     />
                     <div className="h-64">
                       <ComparisonChart 
@@ -266,6 +286,17 @@ const App: React.FC = () => {
                   </div>
                 </div>
             </div>
+            {activityA && activityB && (
+              <MergeControls
+                baseSource={baseSource}
+                hrSource={hrSource}
+                onBaseSourceChange={setBaseSource}
+                onHrSourceChange={setHrSource}
+                onMerge={handleMerge}
+                fileAName={mergeLabelA}
+                fileBName={mergeLabelB}
+              />
+            )}
           </div>
 
         </div>

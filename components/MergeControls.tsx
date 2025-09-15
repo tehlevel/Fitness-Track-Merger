@@ -36,7 +36,7 @@ export const MergeControls: React.FC<MergeControlsProps> = ({
 }) => {
   return (
     <div className="p-6 bg-white rounded-xl shadow-md space-y-6">
-      <h2 className="text-xl font-bold text-slate-700 border-b pb-2">2. Configure Merge</h2>
+      <h2 className="text-xl font-bold text-slate-700 border-b pb-2">3. Configure Merge</h2>
       
       <fieldset className="space-y-2">
         <legend className="text-md font-semibold text-slate-700">Track & Time Source</legend>

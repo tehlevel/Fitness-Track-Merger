@@ -86,3 +86,35 @@ export const formatTimeOfDayAxis = (timestamp: number): string => {
   const minutes = date.getMinutes().toString().padStart(2, '0');
   return `${hours}:${minutes}`;
 };
+
+/**
+ * Smoothes an array of numerical data using a centered Simple Moving Average (SMA) algorithm.
+ * @param data The array of source data (e.g., pace values). Can contain nulls.
+ * @param windowSize The size of the window for smoothing. Should be an odd number.
+ * @returns A new array with the smoothed data.
+ */
+export const simpleMovingAverage = (data: (number | null)[], windowSize: number): (number | null)[] => {
+  if (!data || windowSize <= 1) {
+    return data;
+  }
+
+  const smoothedData: (number | null)[] = [];
+  const halfWindow = Math.floor(windowSize / 2);
+
+  for (let i = 0; i < data.length; i++) {
+    const startIndex = Math.max(0, i - halfWindow);
+    const endIndex = Math.min(data.length - 1, i + halfWindow);
+    
+    const window = data.slice(startIndex, endIndex + 1);
+    const validWindowValues = window.filter((val): val is number => val !== null && isFinite(val));
+    
+    if (validWindowValues.length === 0) {
+      smoothedData.push(data[i]); // Keep original value if no valid points in window
+    } else {
+      const sum = validWindowValues.reduce((acc, val) => acc + val, 0);
+      smoothedData.push(sum / validWindowValues.length);
+    }
+  }
+  
+  return smoothedData;
+};

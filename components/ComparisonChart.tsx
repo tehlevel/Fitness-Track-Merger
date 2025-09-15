@@ -34,12 +34,21 @@ export const ComparisonChart: React.FC<ComparisonChartProps> = ({ data, metric, 
   const defaultDomain: [number, number] = isHr ? [100, 200] : [180, 540]; // Default: HR 100-200, Pace 3-9 min/km
   const yDomain: [number | 'auto', number | 'auto'] = [yMin ?? defaultDomain[0], yMax ?? defaultDomain[1]];
   const yLabel = isHr ? 'Heart Rate (bpm)' : 'Pace (min/km)';
-  const strokeColor = isHr ? '#0ea5e9' : '#f97316';
-  const strokeColorLight = isHr ? '#67e8f9' : '#fdba74';
+  
+  const colorA = '#3b82f6'; // Blue for device A
+  const colorB = '#f97316'; // Orange for device B
+  const colorMerged = '#8b5cf6'; // Purple for merged
+  const axisColor = '#475569'; // Neutral slate for axis
+
   const dataKeyA = isHr ? 'hrA' : 'paceA';
   const dataKeyB = isHr ? 'hrB' : 'paceB';
+  const dataKeyMerged = isHr ? 'hrMerged' : 'paceMerged';
+
   const nameA = isHr ? `HR ${labelA}` : `Pace ${labelA}`;
   const nameB = isHr ? `HR ${labelB}` : `Pace ${labelB}`;
+  const nameMerged = 'Merged';
+
+  const hasMergedData = data.some(d => d.hrMerged !== null || d.paceMerged !== null);
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -58,11 +67,11 @@ export const ComparisonChart: React.FC<ComparisonChartProps> = ({ data, metric, 
         />
         <YAxis
           yAxisId="main"
-          stroke={strokeColor}
+          stroke={axisColor}
           domain={yDomain}
           reversed={!isHr} // Pace is inverted (lower is better/higher on chart)
           tickFormatter={isHr ? (val) => String(Math.round(val)) : (s) => formatPace(s)}
-          label={{ value: yLabel, angle: -90, position: 'insideLeft', offset: 0, fill: strokeColor }}
+          label={{ value: yLabel, angle: -90, position: 'insideLeft', offset: 0, fill: axisColor }}
           allowDataOverflow={true}
         />
         <Tooltip
@@ -76,8 +85,11 @@ export const ComparisonChart: React.FC<ComparisonChartProps> = ({ data, metric, 
           labelFormatter={(label: number) => `Time: ${formatTimeOfDayAxis(label)}`}
         />
         <Legend wrapperStyle={{ bottom: -5 }} />
-        <Line yAxisId="main" type="monotone" dataKey={dataKeyA} name={nameA} stroke={strokeColor} dot={false} connectNulls />
-        <Line yAxisId="main" type="monotone" dataKey={dataKeyB} name={nameB} stroke={strokeColorLight} dot={false} connectNulls />
+        <Line yAxisId="main" type="monotone" dataKey={dataKeyA} name={nameA} stroke={colorA} dot={false} connectNulls />
+        <Line yAxisId="main" type="monotone" dataKey={dataKeyB} name={nameB} stroke={colorB} dot={false} connectNulls />
+        {hasMergedData && (
+          <Line yAxisId="main" type="monotone" dataKey={dataKeyMerged} name={nameMerged} stroke={colorMerged} strokeWidth={2.5} dot={false} connectNulls />
+        )}
       </LineChart>
     </ResponsiveContainer>
   );

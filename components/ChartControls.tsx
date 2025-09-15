@@ -8,6 +8,8 @@ interface ChartControlsProps {
   max: number;
   onMinChange: (value: number) => void;
   onMaxChange: (value: number) => void;
+  smoothingLevel?: number;
+  onSmoothingChange?: (value: number) => void;
 }
 
 const PaceInput: React.FC<{
@@ -17,15 +19,12 @@ const PaceInput: React.FC<{
     onChangeInSeconds: (value: number) => void;
 }> = ({ id, label, valueInSeconds, onChangeInSeconds }) => {
     
-    // Internal state to manage the mm:ss string for a smoother user experience
     const [displayValue, setDisplayValue] = useState(() => formatPace(valueInSeconds));
 
-    // Effect to sync the displayed value if the parent prop changes
     useEffect(() => {
         setDisplayValue(formatPace(valueInSeconds));
     }, [valueInSeconds]);
 
-    // On blur, parse the input and notify the parent if it's a valid, changed value
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
         const newSeconds = parsePaceToSeconds(e.target.value);
         if (newSeconds !== null && !isNaN(newSeconds)) {
@@ -33,12 +32,10 @@ const PaceInput: React.FC<{
                 onChangeInSeconds(newSeconds);
             }
         } else {
-            // Revert to the last valid value from props if user input is invalid
             setDisplayValue(formatPace(valueInSeconds));
         }
     };
     
-    // Update internal state on every keystroke
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setDisplayValue(e.target.value);
     };
@@ -65,6 +62,8 @@ export const ChartControls: React.FC<ChartControlsProps> = ({
   max,
   onMinChange,
   onMaxChange,
+  smoothingLevel,
+  onSmoothingChange,
 }) => {
   const isHr = metric === 'hr';
   const title = isHr ? 'Heart Rate Y-Axis (bpm)' : 'Pace Y-Axis (min/km)';
@@ -101,12 +100,29 @@ export const ChartControls: React.FC<ChartControlsProps> = ({
           </>
         ) : (
           <>
-             {/* For pace, the UI allows entering Min (e.g., 9:00) and Max (e.g., 3:00) from a user perspective */}
              <PaceInput id="pace-min" label="Min (e.g., 9:00)" valueInSeconds={min} onChangeInSeconds={onMinChange} />
              <PaceInput id="pace-max" label="Max (e.g., 3:00)" valueInSeconds={max} onChangeInSeconds={onMaxChange} />
           </>
         )}
       </div>
+
+      {metric === 'pace' && smoothingLevel !== undefined && onSmoothingChange && (
+        <div className="mt-4 pt-4 border-t border-slate-200">
+            <label htmlFor="pace-smoothing" className="block text-xs font-medium text-slate-600 mb-1">
+                Smoothing Level <span className="font-normal text-slate-500">({smoothingLevel === 1 ? 'Off' : `Window of ${smoothingLevel}`})</span>
+            </label>
+            <input
+                type="range"
+                id="pace-smoothing"
+                min="1"
+                max="21"
+                step="2" // Ensures odd numbers for a symmetrical smoothing window
+                value={smoothingLevel}
+                onChange={(e) => onSmoothingChange(parseInt(e.target.value, 10))}
+                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+            />
+        </div>
+      )}
     </div>
   );
 };
